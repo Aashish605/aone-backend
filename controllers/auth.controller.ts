@@ -1,17 +1,21 @@
-import jwt from 'jsonwebtoken';
+import { Request, Response } from 'express';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import db from '../models/index.js';
 import env from '../config/env.config.js';
 import catchAsync from '../utils/catchAsync.js';
 import { ValidationError, ConflictError, UnauthorizedError } from '../utils/AppError.js';
 
-const generateToken = (user) => {
-  return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, {
-    expiresIn: env.jwt.expiresIn,
-  });
+interface AuthRequest extends Request {
+  user?: Record<string, unknown>;
+}
+
+const generateToken = (user: { id: string; role: string }): string => {
+  const options: SignOptions = { expiresIn: env.jwt.expiresIn as SignOptions['expiresIn'] };
+  return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, options);
 };
 
-const register = catchAsync(async (req, res) => {
+const register = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError(errors.array());
@@ -34,7 +38,7 @@ const register = catchAsync(async (req, res) => {
   });
 });
 
-const login = catchAsync(async (req, res) => {
+const login = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError(errors.array());
@@ -61,7 +65,7 @@ const login = catchAsync(async (req, res) => {
   });
 });
 
-const getMe = catchAsync(async (req, res) => {
+const getMe = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
   res.json({
     success: true,
     data: { user: req.user },

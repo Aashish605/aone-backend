@@ -1,29 +1,34 @@
+import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError.js';
 
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction): void => {
   console.error(err.stack || err);
 
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+    res.status(err.statusCode).json({
       success: false,
       message: err.message,
       ...(err.errors && { errors: err.errors }),
     });
+    return;
   }
 
   if (err.name === 'SequelizeValidationError') {
-    return res.status(400).json({
+    const sequelizeErr = err as { errors?: Array<{ message: string }> };
+    res.status(400).json({
       success: false,
       message: 'Validation error',
-      errors: err.errors.map((e) => e.message),
+      errors: sequelizeErr.errors?.map((e) => e.message) || [],
     });
+    return;
   }
 
   if (err.name === 'SequelizeUniqueConstraintError') {
-    return res.status(409).json({
+    res.status(409).json({
       success: false,
       message: 'Resource already exists',
     });
+    return;
   }
 
   res.status(500).json({
