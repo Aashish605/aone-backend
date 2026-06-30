@@ -1,5 +1,9 @@
 class AppError extends Error {
-  constructor(message, statusCode) {
+  public statusCode: number;
+  public isOperational: boolean;
+  public errors?: unknown[];
+
+  constructor(message: string, statusCode: number) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
@@ -26,7 +30,7 @@ class ForbiddenError extends AppError {
 }
 
 class ValidationError extends AppError {
-  constructor(errors = []) {
+  constructor(errors: unknown[] = []) {
     super('Validation failed', 400);
     this.errors = errors;
   }
