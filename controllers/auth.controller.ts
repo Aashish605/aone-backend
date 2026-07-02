@@ -1,25 +1,23 @@
 import { Request, Response } from 'express';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
-import db from '../models/index';
-import env from '../config/env.config';
-import catchAsync from '../utils/catchAsync';
-import { ValidationError, ConflictError, UnauthorizedError } from '../utils/AppError';
-import { AuthenticatedRequest } from '../middlewares/auth.middleware'
+import db from '../models/index.js';
+import env from '../config/env.config.js';
+import catchAsync from '../utils/catchAsync.js';
+import { ValidationError, ConflictError, UnauthorizedError } from '../utils/AppError.js';
+import { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 
-const generateToken = (user: { id: string; role: string }): string => {
-  const options: SignOptions = { expiresIn: env.jwt.expiresIn as SignOptions['expiresIn'] };
+const generateAccessToken = (user: { id: string; role: string }): string => {
+  const options: SignOptions = { expiresIn: '15m' };
   return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, options);
 };
 
-const register = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, {
-    expiresIn: '15m',
-  });
+const generateRefreshToken = (user: { id: string; role: string }): string => {
+  const options: SignOptions = { expiresIn: '7d' };
+  return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, options);
 };
 
-const login = catchAsync(async (req: Request, res: Response): Promise<void> => {
->>>>>>> b710c2913fcc19fe7a16346ab6e68c936d9445ac
+const signup = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError(errors.array());
@@ -92,7 +90,7 @@ const getMe = catchAsync(async (req: AuthenticatedRequest, res: Response): Promi
   });
 });
 
-const refresh = catchAsync(async (req: Request, res: Response) => {
+const refresh = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const token = req.cookies.refreshToken;
   if (!token) {
     throw new UnauthorizedError('No refresh token provided');
