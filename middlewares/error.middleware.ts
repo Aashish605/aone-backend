@@ -13,24 +13,6 @@ const errorHandler = (err: Error, _req: Request, res: Response, _next: NextFunct
     return;
   }
 
-  if (err.name === 'SequelizeValidationError') {
-    const sequelizeErr = err as { errors?: Array<{ message: string }> };
-    res.status(400).json({
-      success: false,
-      message: 'Validation error',
-      errors: sequelizeErr.errors?.map((e) => e.message) || [],
-    });
-    return;
-  }
-
-  if (err.name === 'SequelizeUniqueConstraintError') {
-    res.status(409).json({
-      success: false,
-      message: 'Resource already exists',
-    });
-    return;
-  }
-
   res.status(500).json({
     success: false,
     message: 'Internal server error',
