@@ -12,19 +12,19 @@ class AppError extends Error {
 }
 
 class NotFoundError extends AppError {
-  constructor(resource = 'Resource') {
+  constructor(resource: string = 'Resource') {
     super(`${resource} not found`, 404);
   }
 }
 
 class UnauthorizedError extends AppError {
-  constructor(message = 'Authentication required') {
+  constructor(message: string = 'Authentication required') {
     super(message, 401);
   }
 }
 
 class ForbiddenError extends AppError {
-  constructor(message = 'Insufficient permissions') {
+  constructor(message: string = 'Insufficient permissions') {
     super(message, 403);
   }
 }
@@ -37,7 +37,7 @@ class ValidationError extends AppError {
 }
 
 class ConflictError extends AppError {
-  constructor(message = 'Resource already exists') {
+  constructor(message: string = 'Resource already exists') {
     super(message, 409);
   }
 }

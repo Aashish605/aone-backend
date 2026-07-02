@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import db from '../models/index';
 import env from '../config/env.config';
@@ -7,19 +7,19 @@ import catchAsync from '../utils/catchAsync';
 import { ValidationError, ConflictError, UnauthorizedError } from '../utils/AppError';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware'
 
-const generateAccessToken = (user: { id: string; role: string }): string => {
+const generateToken = (user: { id: string; role: string }): string => {
+  const options: SignOptions = { expiresIn: env.jwt.expiresIn as SignOptions['expiresIn'] };
+  return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, options);
+};
+
+const register = catchAsync(async (req: Request, res: Response): Promise<void> => {
   return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, {
     expiresIn: '15m',
   });
 };
 
-const generateRefreshToken = (user: { id: string; role: string }): string => {
-  return jwt.sign({ id: user.id, role: user.role }, env.jwt.secret, {
-    expiresIn: '7d',
-  });
-};
-
-const signup = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+const login = catchAsync(async (req: Request, res: Response): Promise<void> => {
+>>>>>>> b710c2913fcc19fe7a16346ab6e68c936d9445ac
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError(errors.array());
@@ -50,7 +50,7 @@ const signup = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   });
 });
 
-const login = catchAsync(async (req: Request, res: Response) => {
+const login = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     throw new ValidationError(errors.array());
@@ -85,7 +85,7 @@ const login = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getMe = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+const getMe = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   res.json({
     success: true,
     data: { user: req.user },
