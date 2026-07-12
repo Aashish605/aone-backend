@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { bearer } from "better-auth/plugins";
 import { Pool } from "pg";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 
@@ -13,6 +14,7 @@ export const auth = betterAuth({
     secret: process.env.BETTER_AUTH_SECRET!,
     baseURL: process.env.BETTER_AUTH_URL!,
     trustedOrigins: ['http://localhost:3000'], 
+    plugins: [bearer()],
     emailAndPassword: { enabled: true },
     socialProviders: {
         google: {

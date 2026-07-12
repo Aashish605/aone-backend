@@ -7,6 +7,7 @@ import routes from './routes/index.js';
 import errorHandler from './middlewares/error.middleware.js';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth/auth.js';
+import db from './models/index.js';
 
 const app = express();
 
@@ -25,15 +26,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api', routes);
 app.use(errorHandler);
 
-app.get('/', (_req: Request, res: Response): void => {
-  res.status(200).json({
-    success: true,
-    message: 'Server running successfully',
-  });
-});
-
 const start = async (): Promise<void> => {
   try {
+    if (process.env.NODE_ENV !== 'production') {
+      await db.sequelize.sync();
+      console.log('Database synced');
+    }
     app.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });
