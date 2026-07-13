@@ -28,7 +28,7 @@ Conversation.init(
       allowNull: false,
     },
     assigned_agent_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     status: {
