@@ -18,6 +18,10 @@ interface DbConfig {
 interface EnvConfig {
   port: number;
   db: DbConfig;
+  fbAppId: string;
+  fbAppSecret: string;
+  fbRedirectUri: string;
+  encryptionKey: string;
 }
 
 const env: EnvConfig = {
@@ -29,6 +33,10 @@ const env: EnvConfig = {
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
   },
+  fbAppId: process.env.FB_APP_ID || '',
+  fbAppSecret: process.env.FB_APP_SECRET || '',
+  fbRedirectUri: process.env.FB_REDIRECT_URI || '',
+  encryptionKey: process.env.ENCRYPTION_KEY || '',
 };
 
 export default env;
