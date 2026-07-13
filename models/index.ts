@@ -9,4 +9,5 @@ const db: Db = {
   sequelize: sequelizeInstance,
 };
 
+export { sequelizeInstance as sequelize };
 export default db;

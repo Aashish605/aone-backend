@@ -18,6 +18,8 @@ interface DbConfig {
 interface EnvConfig {
   port: number;
   db: DbConfig;
+  betterAuthSecret: string;
+  betterAuthUrl: string;
 }
 
 const env: EnvConfig = {
@@ -29,6 +31,8 @@ const env: EnvConfig = {
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
   },
+  betterAuthSecret: process.env.BETTER_AUTH_SECRET || '',
+  betterAuthUrl: process.env.BETTER_AUTH_URL || 'http://localhost:5000',
 };
 
 export default env;
