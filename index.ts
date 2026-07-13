@@ -9,6 +9,7 @@ import routes from './routes/index.js';
 import errorHandler from './middlewares/error.middleware.js';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth } from './auth/auth.js';
+import db from './models/index.js';
 
 const app = express();
 
@@ -61,7 +62,10 @@ const start = async (): Promise<void> => {
   try {
     await db.sequelize.authenticate();
     console.log('Database connected successfully');
-
+    if (process.env.NODE_ENV !== 'production') {
+      await db.sequelize.sync();
+      console.log('Database synced');
+    }
     app.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });
