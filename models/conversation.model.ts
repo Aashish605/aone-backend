@@ -15,7 +15,8 @@ class Conversation extends Model {
 Conversation.init(
   {
     id: {
-      type: DataTypes.TEXT,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
     customer_id: {
