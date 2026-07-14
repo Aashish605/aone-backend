@@ -15,8 +15,7 @@ class Conversation extends Model {
 Conversation.init(
   {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.TEXT,
       primaryKey: true,
     },
     customer_id: {
@@ -28,7 +27,7 @@ Conversation.init(
       allowNull: false,
     },
     assigned_agent_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     status: {
