@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import env from './config/env.config.js';
+import initDatabase from './config/init-db.js';
 import routes from './routes/index.js';
 import errorHandler from './middlewares/error.middleware.js';
 import { toNodeHandler } from 'better-auth/node';
@@ -28,6 +29,7 @@ app.use(errorHandler);
 
 const start = async (): Promise<void> => {
   try {
+    await initDatabase();
     if (process.env.NODE_ENV !== 'production') {
       await db.sequelize.sync();
       console.log('Database synced');
