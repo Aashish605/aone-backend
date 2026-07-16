@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import helmetFn from 'helmet';
+const helmet = helmetFn as unknown as () => any;
 import morgan from 'morgan';
 import env from './config/env.config.js';
 import routes from './routes/index.js';
@@ -26,15 +27,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api', routes);
 app.use(errorHandler);
 
-const start = async (): Promise<void> => {
-  try {
-    app.listen(env.port, () => {
-      console.log(`Server running on port ${env.port}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
+if (!process.env.VERCEL) {
+  const start = async (): Promise<void> => {
+    try {
+      app.listen(env.port, () => {
+        console.log(`Server running on port ${env.port}`);
+      });
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  };
 
-start();
+  start();
+}
+
+export default app;
