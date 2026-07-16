@@ -28,10 +28,6 @@ app.use(errorHandler);
 
 const start = async (): Promise<void> => {
   try {
-    if (process.env.NODE_ENV !== 'production') {
-      await db.sequelize.sync();
-      console.log('Database synced');
-    }
     app.listen(env.port, () => {
       console.log(`Server running on port ${env.port}`);
     });
