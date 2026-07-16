@@ -4,16 +4,18 @@ import { Pool } from "pg";
 import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 
 export const auth = betterAuth({
-    database: new Pool({
-        host: process.env.DB_HOST,
-        port: Number(process.env.DB_PORT),
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
-    }),
+    database: process.env.DATABASE_URL
+        ? new Pool({ connectionString: process.env.DATABASE_URL })
+        : new Pool({
+            host: process.env.DB_HOST,
+            port: Number(process.env.DB_PORT),
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+        }),
     secret: process.env.BETTER_AUTH_SECRET!,
     baseURL: process.env.BETTER_AUTH_URL!,
-    trustedOrigins: ['http://localhost:3000'], 
+    trustedOrigins: [process.env.CORS_ORIGIN || 'http://localhost:3000'], 
     plugins: [bearer()],
     emailAndPassword: { enabled: true },
     socialProviders: {
