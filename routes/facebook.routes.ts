@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 import db from '../models/index.js';
@@ -173,18 +173,7 @@ router.put('/:channelId/reconnect', requireSession, async (req: AuthenticatedReq
   res.redirect(`/api/channels/facebook/connect?channelId=${channel.id}`);
 });
 
-// Raw body capture for webhook signature verification
-function rawBodyCapture(req: Request, _res: Response, next: NextFunction) {
-  let raw = '';
-  req.on('data', (chunk: string) => { raw += chunk; });
-  req.on('end', () => {
-    (req as any).rawBody = raw;
-    try { if (raw) req.body = JSON.parse(raw); } catch {}
-    next();
-  });
-}
-
-router.post('/webhook', rawBodyCapture, async (req: Request, res: Response) => {
+router.post('/webhook', async (req: Request, res: Response) => {
   const signature = req.headers['x-hub-signature-256'] as string;
   if (signature) {
     const expectedHash = crypto
