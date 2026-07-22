@@ -129,11 +129,11 @@ router.get('/callback', async (req: Request, res: Response) => {
     if (reconnectChannelId) {
       const target = updatedChannels.find(c => c.id === reconnectChannelId);
       if (target) {
-        return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:3000'}/settings/channels?reconnected=true&channelId=${target.id}`);
+        return res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:3000'}/chats?reconnected=true&channelId=${target.id}`);
       }
     }
 
-    res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:3000'}/settings/channels?connected=true&count=${updatedChannels.length}`);
+    res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:3000'}/chats?connected=true&count=${updatedChannels.length}`);
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: unknown }; message?: string };
     console.error('Facebook connect error:', axiosErr.response?.data || axiosErr.message);
