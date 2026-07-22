@@ -1,15 +1,10 @@
 import { Router } from 'express';
-import { list, getById, create, update, remove } from '../controllers/conversation.controller.js';
+import { listAll } from '../controllers/conversation.controller.js';
 import { requireSession } from '../middlewares/session.middleware.js';
 
-const router = Router({ mergeParams: true });
+const router = Router();
 
 router.use(requireSession);
-
-router.get('/', list);
-router.get('/:id', getById);
-router.post('/', create);
-router.put('/:id', update);
-router.delete('/:id', remove);
+router.get('/', listAll);
 
 export default router;

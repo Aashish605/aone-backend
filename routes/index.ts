@@ -13,7 +13,7 @@ router.use('/channels/facebook', facebookRoutes);
 router.use('/channels', channelRoutes);
 router.use('/customers', customerRoutes);
 router.use('/customers/:customerId/identities', identityRoutes);
-router.use('/customers/:customerId/conversations', conversationRoutes);
+router.use('/conversations', conversationRoutes);
 router.use('/conversations/:conversationId/messages', messageRoutes);
 router.use('/channels/:channelId/webhook-events', webhookEventRoutes);
 

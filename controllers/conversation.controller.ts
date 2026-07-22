@@ -1,106 +1,90 @@
-import { Request, Response } from 'express';
+import { Op } from 'sequelize';
+import { Request } from 'express';
 import catchAsync from '../utils/catchAsync.js';
-import { NotFoundError, ValidationError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
-const list = catchAsync(async (req: Request, res: Response) => {
-  const customerId = req.params.customerId as string;
-  const customer = await db.Customer.findByPk(customerId);
-  if (!customer) throw new NotFoundError('Customer');
+const listAll = catchAsync(async (req: Request, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const { type, search, page = '1', limit = '20' } = authReq.query;
 
-  const conversations = await db.Conversation.findAll({
-    where: { customer_id: customerId },
-    include: [
-      { model: db.Channel, as: 'channel' },
-    ],
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 20));
+  const offset = (pageNum - 1) * limitNum;
+
+  const customerInclude: any = { model: db.Customer, as: 'customer' };
+  const channelInclude: any = { model: db.Channel, as: 'channel' };
+
+  if (search) {
+    customerInclude.where = { name: { [Op.iLike]: `%${search}%` } };
+    customerInclude.required = true;
+  }
+
+  if (type && ['facebook', 'instagram', 'whatsapp'].includes(type as string)) {
+    channelInclude.where = { type };
+    channelInclude.required = true;
+  }
+
+  const { count: total, rows: conversations } = await db.Conversation.findAndCountAll({
+    include: [customerInclude, channelInclude],
     order: [['last_message_at', 'DESC']],
-  });
+    limit: limitNum,  
+    offset,
+  }); 
 
-  res.json({ success: true, data: conversations });
-});
+  const convIds = conversations.map(c => c.id);
+  const lastMessages = convIds.length
+    ? await db.Message.findAll({
+        attributes: ['conversation_id', 'content', 'sender_type', 'created_at'],
+        where: { conversation_id: convIds },
+        order: [['created_at', 'DESC']],
+      })
+    : [];
 
-const getById = catchAsync(async (req: Request, res: Response) => {
-  const conversation = await db.Conversation.findOne({
-    where: {
-      id: req.params.id as string,
-      customer_id: req.params.customerId as string,
-    },
-    include: [
-      { model: db.Channel, as: 'channel' },
-    ],
-  });
-
-  if (!conversation) throw new NotFoundError('Conversation');
-  res.json({ success: true, data: conversation });
-});
-
-const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const customerId = req.params.customerId as string;
-  const customer = await db.Customer.findByPk(customerId);
-  if (!customer) throw new NotFoundError('Customer');
-
-  const { channel_id, assigned_agent_id, status } = req.body;
-
-  if (!channel_id) {
-    throw new ValidationError([
-      { field: 'channel_id', message: 'Channel ID is required' },
-    ]);
-  }
-
-  const channel = await db.Channel.findByPk(channel_id);
-  if (!channel) throw new NotFoundError('Channel');
-
-  const conversation = await db.Conversation.create({
-    customer_id: customerId,
-    channel_id,
-    assigned_agent_id: assigned_agent_id || null,
-    status: status || 'open',
-  });
-
-  res.status(201).json({ success: true, data: conversation });
-});
-
-const update = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const conversation = await db.Conversation.findOne({
-    where: {
-      id: req.params.id as string,
-      customer_id: req.params.customerId as string,
-    },
-  });
-
-  if (!conversation) throw new NotFoundError('Conversation');
-
-  const { status, assigned_agent_id, last_message_at } = req.body;
-
-  const validStatuses = ['open', 'pending', 'closed', 'snoozed'];
-  if (status) {
-    if (!validStatuses.includes(status)) {
-      throw new ValidationError([
-        { field: 'status', message: `Status must be one of: ${validStatuses.join(', ')}` },
-      ]);
+  const lastMsgMap = new Map<string, any>();
+  for (const msg of lastMessages) {
+    if (!lastMsgMap.has(msg.conversation_id)) {
+      lastMsgMap.set(msg.conversation_id, msg);
     }
-    conversation.status = status;
   }
-  if (assigned_agent_id !== undefined) conversation.assigned_agent_id = assigned_agent_id;
-  if (last_message_at !== undefined) conversation.last_message_at = last_message_at;
 
-  await conversation.save();
-  res.json({ success: true, data: conversation });
-});
+    const data = conversations.map(conv => ({
+      id: conv.id,
+      status: conv.status,
+      last_message_at: conv.last_message_at,
+      customer: (conv as any).customer
+        ? {
+            id: (conv as any).customer.id,
+            name: (conv as any).customer.name,
+            avatar_url: (conv as any).customer.avatar_url,
+          }
+        : null,
+      channel: (conv as any).channel
+        ? {
+            id: (conv as any).channel.id,
+            name: (conv as any).channel.name,
+            type: (conv as any).channel.type,
+          }
+        : null,
+      lastMessage: lastMsgMap.get(conv.id)
+        ? {
+            content: lastMsgMap.get(conv.id).content,
+            sender_type: lastMsgMap.get(conv.id).sender_type,
+            created_at: lastMsgMap.get(conv.id).created_at,
+          }
+        : null,
+    }));
 
-const remove = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const conversation = await db.Conversation.findOne({
-    where: {
-      id: req.params.id as string,
-      customer_id: req.params.customerId as string,
+  res.json({
+    success: true,
+    data,
+    meta: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
     },
   });
-
-  if (!conversation) throw new NotFoundError('Conversation');
-
-  await conversation.destroy();
-  res.json({ success: true, message: 'Conversation deleted successfully' });
 });
 
-export { list, getById, create, update, remove };
+export { listAll };
