@@ -250,6 +250,35 @@ const handleWebhook = async (req: Request, res: Response) => {
           conversation.last_message_at = new Date();
           await conversation.save();
         }
+
+        if (event.postback) {
+          const psid = event.sender.id;
+          const customer = await resolveFacebookCustomer(channel, psid, pageToken);
+
+          let conversation = await db.Conversation.findOne({
+            where: { customer_id: customer.id, channel_id: channel.id, status: 'open' },
+          });
+          if (!conversation) {
+            conversation = await db.Conversation.create({
+              customer_id: customer.id,
+              channel_id: channel.id,
+              status: 'open',
+            });
+          }
+
+          await db.Message.create({
+            conversation_id: conversation.id,
+            sender_type: 'customer',
+            sender_id: customer.id,
+            content: event.postback.title || event.postback.payload || null,
+            message_type: 'text',
+            status: 'sent',
+            raw_payload: event,
+          });
+
+          conversation.last_message_at = new Date();
+          await conversation.save();
+        }
       }
     }
 
