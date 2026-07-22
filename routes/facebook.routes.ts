@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 import db from '../models/index.js';
-import { encrypt } from '../utils/crypto.js';
+import { encrypt, decrypt } from '../utils/crypto.js';
 import { requireSession, AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
 const router = Router();
@@ -23,6 +23,34 @@ async function subscribePage(pageId: string, accessToken: string) {
     const axiosErr = err as { response?: { data?: unknown }; message?: string };
     console.error(`Failed to subscribe page ${pageId}:`, axiosErr.response?.data || axiosErr.message);
   }
+}
+
+async function resolveFacebookCustomer(channel: any, psid: string, pageToken: string): Promise<any> {
+  const existingIdentity = await db.CustomerChannelIdentity.findOne({
+    where: { channel_id: channel.id, external_user_id: psid },
+    include: [{ model: db.Customer, as: 'customer' }],
+  });
+  if (existingIdentity) return (existingIdentity as any).customer;
+
+  let name: string | null = null;
+  let avatarUrl: string | null = null;
+  try {
+    const userRes = await axios.get(`${GRAPH_BASE}/${psid}`, {
+      params: { fields: 'name,picture', access_token: pageToken },
+    });
+    name = userRes.data.name || null;
+    avatarUrl = userRes.data.picture?.data?.url || null;
+  } catch {
+    console.log(`Could not fetch profile for PSID ${psid}`);
+  }
+
+  const customer = await db.Customer.create({ name, avatar_url: avatarUrl });
+  await db.CustomerChannelIdentity.create({
+    customer_id: customer.id,
+    channel_id: channel.id,
+    external_user_id: psid,
+  });
+  return customer;
 }
 
 router.get('/connect', (req: Request, res: Response) => {
@@ -199,11 +227,46 @@ router.post('/webhook', async (req: Request, res: Response) => {
     });
 
     for (const entry of body.entry || []) {
+      const channel = await db.Channel.findOne({
+        where: { external_account_id: entry.id, type: 'facebook' },
+      });
+      if (!channel || !channel.access_token) continue;
+
+      const pageToken = decrypt(channel.access_token);
+
       for (const event of entry.messaging || []) {
         if (event.message) {
-          console.log('Message event:', JSON.stringify(event));
-        } else if (event.postback) {
-          console.log('Postback event:', JSON.stringify(event));
+          const psid = event.sender.id;
+          const customer = await resolveFacebookCustomer(channel, psid, pageToken);
+
+          let conversation = await db.Conversation.findOne({
+            where: { customer_id: customer.id, channel_id: channel.id, status: 'open' },
+          });
+          if (!conversation) {
+            conversation = await db.Conversation.create({
+              customer_id: customer.id,
+              channel_id: channel.id,
+              status: 'open',
+            });
+          }
+
+          const messageType = event.message.attachments?.[0]?.type === 'image' ? 'image' : 'text';
+          const mediaUrl = event.message.attachments?.[0]?.payload?.url || null;
+
+          await db.Message.create({
+            conversation_id: conversation.id,
+            sender_type: 'customer',
+            sender_id: customer.id,
+            external_message_id: event.message.mid,
+            content: event.message.text || null,
+            message_type: messageType,
+            media_url: mediaUrl,
+            status: 'sent',
+            raw_payload: event,
+          });
+
+          conversation.last_message_at = new Date();
+          await conversation.save();
         }
       }
     }
