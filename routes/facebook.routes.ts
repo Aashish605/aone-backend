@@ -174,6 +174,8 @@ router.put('/:channelId/reconnect', requireSession, async (req: AuthenticatedReq
 });
 
 router.post('/webhook', async (req: Request, res: Response) => {
+  console.log('[WEBHOOK] body:', JSON.stringify(req.body));
+  console.log('[WEBHOOK] rawBody exists:', !!(req as any).rawBody);
   const signature = req.headers['x-hub-signature-256'] as string;
   if (signature) {
     const expectedHash = crypto
