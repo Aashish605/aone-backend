@@ -20,7 +20,7 @@ export async function sendFacebookMessage(
     msgBody.message = { text: content || '' };
   }
 
-  const res = await axios.post(`${GRAPH_BASE}/${psid}/messages`, msgBody, {
+  const res = await axios.post(`${GRAPH_BASE}/me/messages`, msgBody, {
     params: { access_token: pageToken },
   });
 
