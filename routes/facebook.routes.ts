@@ -174,25 +174,23 @@ router.put('/:channelId/reconnect', requireSession, async (req: AuthenticatedReq
 });
 
 router.post('/webhook', async (req: Request, res: Response) => {
-  console.log('[WEBHOOK] body:', JSON.stringify(req.body));
-  console.log('[WEBHOOK] rawBody exists:', !!(req as any).rawBody);
-  const signature = req.headers['x-hub-signature-256'] as string;
-  if (signature) {
-    const expectedHash = crypto
-      .createHmac('sha256', process.env.FB_APP_SECRET!)
-      .update((req as any).rawBody)
-      .digest('hex');
-    const expected = `sha256=${expectedHash}`;
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-      return res.sendStatus(403);
-    }
-  }
-
-  res.sendStatus(200);
-
   try {
+    const signature = req.headers['x-hub-signature-256'] as string;
+    if (signature) {
+      const expectedHash = crypto
+        .createHmac('sha256', process.env.FB_APP_SECRET!)
+        .update((req as any).rawBody)
+        .digest('hex');
+      const expected = `sha256=${expectedHash}`;
+      if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+        return res.sendStatus(403);
+      }
+    }
+
     const body = req.body;
-    if (!body || (body.object !== 'page' && body.object !== 'instagram')) return;
+    if (!body || (body.object !== 'page' && body.object !== 'instagram')) {
+      return res.sendStatus(200);
+    }
 
     await db.WebhookEvent.create({
       channel_id: null,
@@ -203,15 +201,17 @@ router.post('/webhook', async (req: Request, res: Response) => {
     for (const entry of body.entry || []) {
       for (const event of entry.messaging || []) {
         if (event.message) {
-          console.log('Message event:', JSON.stringify(event, null, 2));
+          console.log('Message event:', JSON.stringify(event));
         } else if (event.postback) {
-          console.log('Postback event:', JSON.stringify(event, null, 2));
+          console.log('Postback event:', JSON.stringify(event));
         }
       }
     }
+
+    res.sendStatus(200);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('Webhook processing error:', message);
+    console.error('Webhook error:', err instanceof Error ? err.message : String(err));
+    res.sendStatus(200);
   }
 });
 
