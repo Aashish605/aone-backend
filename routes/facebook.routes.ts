@@ -208,7 +208,8 @@ router.post('/webhook', async (req: Request, res: Response) => {
       }
     }
   } catch (err) {
-    console.error('Webhook processing error:', err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('Webhook processing error:', message);
   }
 });
 
