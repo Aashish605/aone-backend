@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 import db from '../models/index.js';
@@ -9,6 +9,21 @@ const router = Router();
 
 const GRAPH_API_VERSION = 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+
+async function subscribePage(pageId: string, accessToken: string) {
+  try {
+    await axios.post(`${GRAPH_BASE}/${pageId}/subscribed_apps`, null, {
+      params: {
+        access_token: accessToken,
+        subscribed_fields: 'messages,messaging_postbacks,message_deliveries',
+      },
+    });
+    console.log(`Subscribed page ${pageId} to webhooks`);
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { data?: unknown }; message?: string };
+    console.error(`Failed to subscribe page ${pageId}:`, axiosErr.response?.data || axiosErr.message);
+  }
+}
 
 router.get('/connect', (req: Request, res: Response) => {
   const state = req.query.channelId ? JSON.stringify({ channelId: req.query.channelId }) : '';
@@ -94,6 +109,7 @@ router.get('/callback', async (req: Request, res: Response) => {
         existing.status = 'active';
         await existing.save();
         updatedChannels.push(existing);
+        await subscribePage(page.id, page.access_token);
         continue;
       }
 
@@ -107,6 +123,7 @@ router.get('/callback', async (req: Request, res: Response) => {
       });
 
       updatedChannels.push(channel);
+      await subscribePage(page.id, page.access_token);
     }
 
     if (reconnectChannelId) {
@@ -122,6 +139,20 @@ router.get('/callback', async (req: Request, res: Response) => {
     console.error('Facebook connect error:', axiosErr.response?.data || axiosErr.message);
     res.status(500).send('Failed to connect Facebook account.');
   }
+});
+
+router.get('/webhook', (req: Request, res: Response) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  console.log('Webhook verify:', { mode, token, challenge, verifyToken: process.env.FB_WEBHOOK_VERIFY_TOKEN });
+
+  if (mode === 'subscribe' && token === process.env.FB_WEBHOOK_VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+
+  return res.sendStatus(403);
 });
 
 router.put('/:channelId/disconnect', requireSession, async (req: AuthenticatedRequest, res: Response) => {
@@ -140,6 +171,56 @@ router.put('/:channelId/reconnect', requireSession, async (req: AuthenticatedReq
   if (!channel) return res.status(404).json({ success: false, message: 'Channel not found' });
 
   res.redirect(`/api/channels/facebook/connect?channelId=${channel.id}`);
+});
+
+// Raw body capture for webhook signature verification
+function rawBodyCapture(req: Request, _res: Response, next: NextFunction) {
+  let raw = '';
+  req.on('data', (chunk: string) => { raw += chunk; });
+  req.on('end', () => {
+    (req as any).rawBody = raw;
+    try { if (raw) req.body = JSON.parse(raw); } catch {}
+    next();
+  });
+}
+
+router.post('/webhook', rawBodyCapture, async (req: Request, res: Response) => {
+  const signature = req.headers['x-hub-signature-256'] as string;
+  if (signature) {
+    const expectedHash = crypto
+      .createHmac('sha256', process.env.FB_APP_SECRET!)
+      .update((req as any).rawBody)
+      .digest('hex');
+    const expected = `sha256=${expectedHash}`;
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+      return res.sendStatus(403);
+    }
+  }
+
+  res.sendStatus(200);
+
+  try {
+    const body = req.body;
+    if (!body || (body.object !== 'page' && body.object !== 'instagram')) return;
+
+    await db.WebhookEvent.create({
+      channel_id: null,
+      payload: body,
+      processed: false,
+    });
+
+    for (const entry of body.entry || []) {
+      for (const event of entry.messaging || []) {
+        if (event.message) {
+          console.log('Message event:', JSON.stringify(event, null, 2));
+        } else if (event.postback) {
+          console.log('Postback event:', JSON.stringify(event, null, 2));
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Webhook processing error:', err);
+  }
 });
 
 export default router;
