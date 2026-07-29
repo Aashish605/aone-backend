@@ -170,8 +170,9 @@ async function callback(req: Request, res: Response) {
     res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:3000'}/chats?connected=true&count=${updatedChannels.length}`);
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: unknown }; message?: string };
-    console.error('Facebook connect error:', axiosErr.response?.data || axiosErr.message);
-    res.status(500).send('Failed to connect Facebook account.');
+    const detail = axiosErr.response?.data || axiosErr.message;
+    console.error('Facebook connect error:', detail);
+    res.status(500).json({ error: 'Failed to connect Facebook account', detail });
   }
 }
 

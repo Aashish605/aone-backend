@@ -29,8 +29,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', toNodeHandler(auth));
 
 // Debug endpoints
-// Debug endpoint
+// Debug endpoints
 app.get('/api/ping', (_req, res) => res.json({ ok: true }));
+app.get('/api/debug-env', (_req, res) => {
+  res.json({
+    fbAppIdSet: !!process.env.FB_APP_ID,
+    fbAppSecretSet: !!process.env.FB_APP_SECRET,
+    fbRedirectUriSet: !!process.env.FB_REDIRECT_URI,
+    encryptionKeySet: !!process.env.ENCRYPTION_KEY,
+    corsOriginSet: !!process.env.CORS_ORIGIN,
+    databaseUrlSet: !!process.env.DATABASE_URL,
+    nodeEnv: process.env.NODE_ENV,
+  });
+});
 app.use('/api', routes);
 app.use(errorHandler);
 
