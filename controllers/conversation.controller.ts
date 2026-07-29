@@ -13,16 +13,21 @@ const listAll = catchAsync(async (req: Request, res) => {
   const offset = (pageNum - 1) * limitNum;
 
   const customerInclude: any = { model: db.Customer, as: 'customer' };
-  const channelInclude: any = { model: db.Channel, as: 'channel' };
 
   if (search) {
     customerInclude.where = { name: { [Op.iLike]: `%${search}%` } };
     customerInclude.required = true;
   }
 
+  const channelInclude: any = {
+    model: db.Channel,
+    as: 'channel',
+    where: { user_id: authReq.user!.id },
+    required: true,
+  };
+
   if (type && ['facebook', 'instagram', 'whatsapp'].includes(type as string)) {
-    channelInclude.where = { type };
-    channelInclude.required = true;
+    channelInclude.where = { ...channelInclude.where, type };
   }
 
   const { count: total, rows: conversations } = await db.Conversation.findAndCountAll({

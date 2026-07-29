@@ -7,6 +7,16 @@ import WebhookEvent from './webhook_event.model.js';
 import User from './user.model.js';
 
 export default function defineAssociations(): void {
+  User.hasMany(Channel, {
+    foreignKey: 'user_id',
+    as: 'channels',
+  });
+
+  Channel.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'user',
+  });
+
   Channel.hasMany(CustomerChannelIdentity, {
     foreignKey: 'channel_id',
     as: 'identities',

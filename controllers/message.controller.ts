@@ -1,15 +1,20 @@
 import { Request, Response } from 'express';
 import catchAsync from '../utils/catchAsync.js';
-import { NotFoundError } from '../utils/AppError.js';
+import { NotFoundError, ForbiddenError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { decrypt } from '../utils/crypto.js';
 import { sendFacebookMessage } from '../services/facebook.service.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
-const list = catchAsync(async (req: Request, res: Response) => {
+const list = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const conversationId = req.params.conversationId as string;
-  const conversation = await db.Conversation.findByPk(conversationId);
+  const conversation = await db.Conversation.findByPk(conversationId, {
+    include: [{ model: db.Channel, as: 'channel' }],
+  });
   if (!conversation) throw new NotFoundError('Conversation');
+  if ((conversation as any).channel?.user_id !== req.user!.id) {
+    throw new ForbiddenError('Not your channel');
+  }
 
   const messages = await db.Message.findAll({
     where: { conversation_id: conversationId },
@@ -19,11 +24,20 @@ const list = catchAsync(async (req: Request, res: Response) => {
   res.json({ success: true, data: messages });
 });
 
-const getById = catchAsync(async (req: Request, res: Response) => {
+const getById = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const conversation = await db.Conversation.findByPk(conversationId, {
+    include: [{ model: db.Channel, as: 'channel' }],
+  });
+  if (!conversation) throw new NotFoundError('Conversation');
+  if ((conversation as any).channel?.user_id !== req.user!.id) {
+    throw new ForbiddenError('Not your channel');
+  }
+
   const message = await db.Message.findOne({
     where: {
       id: req.params.id as string,
-      conversation_id: req.params.conversationId as string,
+      conversation_id: conversationId,
     },
   });
 
@@ -37,6 +51,9 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     include: [{ model: db.Channel, as: 'channel' }],
   });
   if (!conversation) throw new NotFoundError('Conversation');
+  if ((conversation as any).channel?.user_id !== req.user!.id) {
+    throw new ForbiddenError('Not your channel');
+  }
 
   const {
     sender_type,

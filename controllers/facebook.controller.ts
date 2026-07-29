@@ -53,8 +53,10 @@ async function resolveFacebookCustomer(channel: any, psid: string, pageToken: st
   return customer;
 }
 
-function connect(req: Request, res: Response) {
-  const state = req.query.channelId ? JSON.stringify({ channelId: req.query.channelId }) : '';
+function connect(req: AuthenticatedRequest, res: Response) {
+  const stateObj: Record<string, string> = { userId: req.user!.id };
+  if (req.query.channelId) stateObj.channelId = req.query.channelId as string;
+  const state = JSON.stringify(stateObj);
 
   const params = new URLSearchParams({
     client_id: process.env.FB_APP_ID!,
@@ -81,10 +83,12 @@ async function callback(req: Request, res: Response) {
   }
 
   let reconnectChannelId: string | null = null;
+  let userId: string | null = null;
   if (state) {
     try {
       const parsed = JSON.parse(state as string);
       reconnectChannelId = parsed.channelId || null;
+      userId = parsed.userId || null;
     } catch {
       // invalid state, ignore
     }
@@ -129,7 +133,7 @@ async function callback(req: Request, res: Response) {
 
     for (const page of pages) {
       const existing = await db.Channel.findOne({
-        where: { external_account_id: page.id },
+        where: { external_account_id: page.id, user_id: userId || undefined },
       });
 
       if (existing) {
@@ -144,6 +148,7 @@ async function callback(req: Request, res: Response) {
       const channel = await db.Channel.create({
         type: 'facebook' as const,
         name: page.name,
+        user_id: userId || 'unknown',
         external_account_id: page.id,
         access_token: encrypt(page.access_token),
         webhook_verify_token: crypto.randomBytes(16).toString('hex'),
@@ -290,7 +295,9 @@ const handleWebhook = async (req: Request, res: Response) => {
 };
 
 const disconnect = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const channel = await db.Channel.findByPk(req.params.channelId as string);
+  const channel = await db.Channel.findOne({
+    where: { id: req.params.channelId as string, user_id: req.user!.id },
+  });
   if (!channel) throw new NotFoundError('Channel');
 
   channel.access_token = null;
@@ -301,7 +308,9 @@ const disconnect = catchAsync(async (req: AuthenticatedRequest, res: Response) =
 });
 
 const reconnect = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const channel = await db.Channel.findByPk(req.params.channelId as string);
+  const channel = await db.Channel.findOne({
+    where: { id: req.params.channelId as string, user_id: req.user!.id },
+  });
   if (!channel) throw new NotFoundError('Channel');
 
   res.redirect(`/api/channels/facebook/connect?channelId=${channel.id}`);

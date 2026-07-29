@@ -4,15 +4,18 @@ import { NotFoundError, ValidationError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
-const getAll = catchAsync(async (_req: Request, res: Response) => {
+const getAll = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const channels = await db.Channel.findAll({
+    where: { user_id: req.user!.id },
     order: [['created_at', 'DESC']],
   });
   res.json({ success: true, data: channels });
 });
 
-const getById = catchAsync(async (req: Request, res: Response) => {
-  const channel = await db.Channel.findByPk(req.params.id as string);
+const getById = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const channel = await db.Channel.findOne({
+    where: { id: req.params.id as string, user_id: req.user!.id },
+  });
   if (!channel) throw new NotFoundError('Channel');
   res.json({ success: true, data: channel });
 });
@@ -38,6 +41,7 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const channel = await db.Channel.create({
     type,
     name,
+    user_id: req.user!.id,
     external_account_id,
     access_token: access_token || null,
     webhook_verify_token: webhook_verify_token || null,
@@ -47,7 +51,9 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
 });
 
 const update = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const channel = await db.Channel.findByPk(req.params.id as string);
+  const channel = await db.Channel.findOne({
+    where: { id: req.params.id as string, user_id: req.user!.id },
+  });
   if (!channel) throw new NotFoundError('Channel');
 
   const { type, name, external_account_id, access_token, webhook_verify_token, status } = req.body;
@@ -80,7 +86,9 @@ const update = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
 });
 
 const remove = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const channel = await db.Channel.findByPk(req.params.id as string);
+  const channel = await db.Channel.findOne({
+    where: { id: req.params.id as string, user_id: req.user!.id },
+  });
   if (!channel) throw new NotFoundError('Channel');
 
   await channel.destroy();

@@ -4,15 +4,40 @@ import { NotFoundError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
-const getAll = catchAsync(async (_req: Request, res: Response) => {
+const getAll = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const customers = await db.Customer.findAll({
+    include: [{
+      model: db.Conversation,
+      as: 'conversations',
+      required: true,
+      include: [{
+        model: db.Channel,
+        as: 'channel',
+        where: { user_id: req.user!.id },
+        required: true,
+      }],
+    }],
     order: [['created_at', 'DESC']],
+    distinct: true,
   });
   res.json({ success: true, data: customers });
 });
 
-const getById = catchAsync(async (req: Request, res: Response) => {
-  const customer = await db.Customer.findByPk(req.params.id as string);
+const getById = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const customer = await db.Customer.findOne({
+    where: { id: req.params.id as string },
+    include: [{
+      model: db.Conversation,
+      as: 'conversations',
+      required: true,
+      include: [{
+        model: db.Channel,
+        as: 'channel',
+        where: { user_id: req.user!.id },
+        required: true,
+      }],
+    }],
+  });
   if (!customer) throw new NotFoundError('Customer');
   res.json({ success: true, data: customer });
 });
@@ -31,7 +56,20 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
 });
 
 const update = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const customer = await db.Customer.findByPk(req.params.id as string);
+  const customer = await db.Customer.findOne({
+    where: { id: req.params.id as string },
+    include: [{
+      model: db.Conversation,
+      as: 'conversations',
+      required: true,
+      include: [{
+        model: db.Channel,
+        as: 'channel',
+        where: { user_id: req.user!.id },
+        required: true,
+      }],
+    }],
+  });
   if (!customer) throw new NotFoundError('Customer');
 
   const { name, email, phone, avatar_url } = req.body;
@@ -46,7 +84,20 @@ const update = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
 });
 
 const remove = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
-  const customer = await db.Customer.findByPk(req.params.id as string);
+  const customer = await db.Customer.findOne({
+    where: { id: req.params.id as string },
+    include: [{
+      model: db.Conversation,
+      as: 'conversations',
+      required: true,
+      include: [{
+        model: db.Channel,
+        as: 'channel',
+        where: { user_id: req.user!.id },
+        required: true,
+      }],
+    }],
+  });
   if (!customer) throw new NotFoundError('Customer');
 
   await customer.destroy();

@@ -5,6 +5,7 @@ class Channel extends Model {
   declare id: string;
   declare type: 'facebook' | 'instagram' | 'whatsapp';
   declare name: string;
+  declare user_id: string;
   declare external_account_id: string;
   declare access_token: string | null;
   declare webhook_verify_token: string | null;
@@ -26,6 +27,10 @@ Channel.init(
     },
     name: {
       type: DataTypes.STRING,
+      allowNull: false,
+    },
+    user_id: {
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     external_account_id: {

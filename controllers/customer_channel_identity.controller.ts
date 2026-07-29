@@ -1,17 +1,35 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import catchAsync from '../utils/catchAsync.js';
 import { NotFoundError, ValidationError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
-const list = catchAsync(async (req: Request, res: Response) => {
+const list = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const customerId = req.params.customerId as string;
-  const customer = await db.Customer.findByPk(customerId);
+  const customer = await db.Customer.findOne({
+    where: { id: customerId },
+    include: [{
+      model: db.Conversation,
+      as: 'conversations',
+      required: true,
+      include: [{
+        model: db.Channel,
+        as: 'channel',
+        where: { user_id: req.user!.id },
+        required: true,
+      }],
+    }],
+  });
   if (!customer) throw new NotFoundError('Customer');
 
   const identities = await db.CustomerChannelIdentity.findAll({
     where: { customer_id: customerId },
-    include: [{ model: db.Channel, as: 'channel' }],
+    include: [{
+      model: db.Channel,
+      as: 'channel',
+      where: { user_id: req.user!.id },
+      required: true,
+    }],
     order: [['created_at', 'DESC']],
   });
 
@@ -20,7 +38,20 @@ const list = catchAsync(async (req: Request, res: Response) => {
 
 const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const customerId = req.params.customerId as string;
-  const customer = await db.Customer.findByPk(customerId);
+  const customer = await db.Customer.findOne({
+    where: { id: customerId },
+    include: [{
+      model: db.Conversation,
+      as: 'conversations',
+      required: true,
+      include: [{
+        model: db.Channel,
+        as: 'channel',
+        where: { user_id: req.user!.id },
+        required: true,
+      }],
+    }],
+  });
   if (!customer) throw new NotFoundError('Customer');
 
   const { channel_id, external_user_id, raw_profile } = req.body;
@@ -32,7 +63,9 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     ]);
   }
 
-  const channel = await db.Channel.findByPk(channel_id);
+  const channel = await db.Channel.findOne({
+    where: { id: channel_id, user_id: req.user!.id },
+  });
   if (!channel) throw new NotFoundError('Channel');
 
   const identity = await db.CustomerChannelIdentity.create({
@@ -51,6 +84,12 @@ const remove = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
       id: req.params.id as string,
       customer_id: req.params.customerId as string,
     },
+    include: [{
+      model: db.Channel,
+      as: 'channel',
+      where: { user_id: req.user!.id },
+      required: true,
+    }],
   });
 
   if (!identity) throw new NotFoundError('Identity');
