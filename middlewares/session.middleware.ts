@@ -18,16 +18,20 @@ interface AuthenticatedRequest extends Request {
 }
 
 const requireSession = async (req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> => {
-  const session = await auth.api.getSession({
-    headers: fromNodeHeaders(req.headers),
-  });
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
 
-  if (!session) {
-    throw new UnauthorizedError('Authentication required');
+    if (!session) {
+      return next(new UnauthorizedError('Authentication required'));
+    }
+
+    req.user = session.user as AuthenticatedRequest['user'];
+    next();
+  } catch (err) {
+    next(err);
   }
-
-  req.user = session.user as AuthenticatedRequest['user'];
-  next();
 };
 
 export { requireSession, AuthenticatedRequest };

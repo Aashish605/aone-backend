@@ -28,6 +28,9 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', toNodeHandler(auth));
 
+// Debug endpoints
+// Debug endpoint
+app.get('/api/ping', (_req, res) => res.json({ ok: true }));
 app.use('/api', routes);
 app.use(errorHandler);
 

@@ -11,6 +11,13 @@ import defineAssociations from './associations.js';
 
 defineAssociations();
 
+// Dev only: auto-create/update tables for local development
+if (process.env.NODE_ENV !== 'production') {
+  sequelizeInstance.sync({ alter: true }).catch((err) =>
+    console.error('Sequelize dev sync failed:', err)
+  );
+}
+
 interface Db {
   sequelize: Sequelize;
   Channel: typeof Channel;

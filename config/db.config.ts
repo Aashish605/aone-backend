@@ -5,12 +5,6 @@ const sequelize: Sequelize = env.databaseUrl
   ? new Sequelize(env.databaseUrl, {
       dialect: 'postgres',
       logging: false,
-      dialectOptions: {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false,
-        },
-      },
       pool: {
         max: 5,
         min: 0,
