@@ -53,8 +53,9 @@ async function resolveFacebookCustomer(channel: any, psid: string, pageToken: st
   return customer;
 }
 
-function connect(req: AuthenticatedRequest, res: Response) {
-  const stateObj: Record<string, string> = { userId: req.user!.id };
+function connect(req: Request, res: Response) {
+  const stateObj: Record<string, string> = {};
+  if (req.query.userId) stateObj.userId = req.query.userId as string;
   if (req.query.channelId) stateObj.channelId = req.query.channelId as string;
   const state = JSON.stringify(stateObj);
 
@@ -313,7 +314,7 @@ const reconnect = catchAsync(async (req: AuthenticatedRequest, res: Response) =>
   });
   if (!channel) throw new NotFoundError('Channel');
 
-  res.redirect(`/api/channels/facebook/connect?channelId=${channel.id}`);
+  res.redirect(`/api/channels/facebook/connect?userId=${req.user!.id}&channelId=${channel.id}`);
 });
 
 export { connect, callback, verifyWebhook, handleWebhook, disconnect, reconnect };

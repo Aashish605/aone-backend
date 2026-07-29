@@ -4,7 +4,7 @@ import { requireSession } from '../middlewares/session.middleware.js';
 
 const router = Router();
 
-router.get('/connect', requireSession, facebookController.connect);
+router.get('/connect', facebookController.connect);
 router.get('/callback', facebookController.callback);
 router.get('/webhook', facebookController.verifyWebhook);
 router.post('/webhook', facebookController.handleWebhook);
