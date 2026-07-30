@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Request, Response } from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -285,6 +286,64 @@ const handleWebhook = async (req: Request, res: Response) => {
 
           conversation.last_message_at = new Date();
           await conversation.save();
+        }
+
+        if (event.read) {
+          const identity = await db.CustomerChannelIdentity.findOne({
+            where: { channel_id: channel.id, external_user_id: event.sender.id },
+          });
+          if (identity) {
+            const conversation = await db.Conversation.findOne({
+              where: { customer_id: identity.customer_id, channel_id: channel.id },
+              order: [['created_at', 'DESC']],
+            });
+            if (conversation) {
+              await db.Message.update(
+                { status: 'read' },
+                {
+                  where: {
+                    conversation_id: conversation.id,
+                    sender_type: 'agent',
+                    created_at: { [Op.lte]: new Date(event.read.watermark) },
+                    status: { [Op.ne]: 'read' },
+                  },
+                },
+              );
+            }
+          }
+        }
+
+        if (event.delivery) {
+          const mids = event.delivery.mids;
+          if (mids?.length) {
+            await db.Message.update(
+              { status: 'delivered' },
+              { where: { external_message_id: mids, status: 'sent' } },
+            );
+          } else if (event.sender?.id) {
+            const identity = await db.CustomerChannelIdentity.findOne({
+              where: { channel_id: channel.id, external_user_id: event.sender.id },
+            });
+            if (identity) {
+              const conversation = await db.Conversation.findOne({
+                where: { customer_id: identity.customer_id, channel_id: channel.id },
+                order: [['created_at', 'DESC']],
+              });
+              if (conversation) {
+                await db.Message.update(
+                  { status: 'delivered' },
+                  {
+                    where: {
+                      conversation_id: conversation.id,
+                      sender_type: 'agent',
+                      created_at: { [Op.lte]: new Date(event.delivery.watermark) },
+                      status: 'sent',
+                    },
+                  },
+                );
+              }
+            }
+          }
         }
       }
     }
