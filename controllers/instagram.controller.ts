@@ -45,6 +45,10 @@ async function callback(req: Request, res: Response) {
     }
   }
 
+  if (!userId) {
+    return res.status(400).send('Missing userId in state — connect must include ?userId=');
+  }
+
   try {
     const tokenRes = await axios.post(
       'https://api.instagram.com/oauth/access_token',
@@ -86,7 +90,7 @@ async function callback(req: Request, res: Response) {
       await db.Channel.create({
         type: 'instagram' as const,
         name,
-        user_id: userId || 'unknown',
+        user_id: userId,
         external_account_id: String(igUserId),
         access_token: encrypt(accessToken),
         webhook_verify_token: crypto.randomBytes(16).toString('hex'),
