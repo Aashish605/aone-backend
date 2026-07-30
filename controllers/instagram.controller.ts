@@ -12,8 +12,8 @@ function connect(req: Request, res: Response) {
   const state = JSON.stringify(stateObj);
 
   const params = new URLSearchParams({
-    client_id: process.env.IG_APP_ID!,
-    redirect_uri: process.env.IG_REDIRECT_URI!,
+    client_id: process.env.INSTA_APP_ID!,
+    redirect_uri: process.env.INSTA_REDIRECT_URI!,
     response_type: 'code',
     scope: 'instagram_business_basic,instagram_business_manage_messages',
   });
@@ -47,10 +47,10 @@ async function callback(req: Request, res: Response) {
     const tokenRes = await axios.post(
       'https://api.instagram.com/oauth/access_token',
       new URLSearchParams({
-        client_id: process.env.IG_APP_ID!,
-        client_secret: process.env.IG_APP_SECRET!,
+        client_id: process.env.INSTA_APP_ID!,
+        client_secret: process.env.INSTA_APP_SECRET!,
         grant_type: 'authorization_code',
-        redirect_uri: process.env.IG_REDIRECT_URI!,
+        redirect_uri: process.env.INSTA_REDIRECT_URI!,
         code: code as string,
       }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
