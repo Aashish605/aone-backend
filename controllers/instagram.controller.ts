@@ -7,9 +7,11 @@ import { encrypt } from '../utils/crypto.js';
 const GRAPH_BASE = 'https://graph.instagram.com/v21.0';
 
 function connect(req: Request, res: Response) {
-  const stateObj: Record<string, string> = {};
-  if (req.query.userId) stateObj.userId = req.query.userId as string;
-  const state = JSON.stringify(stateObj);
+  if (!req.query.userId) {
+    return res.status(400).send('Missing userId parameter');
+  }
+
+  const state = JSON.stringify({ userId: req.query.userId as string });
 
   const params = new URLSearchParams({
     client_id: process.env.INSTA_APP_ID!,
@@ -70,9 +72,10 @@ async function callback(req: Request, res: Response) {
       console.log('Could not fetch IG profile');
     }
 
-    const existing = await db.Channel.findOne({
-      where: { external_account_id: String(igUserId), user_id: userId || undefined },
-    });
+    const where: any = { external_account_id: String(igUserId) };
+    if (userId) where.user_id = userId;
+
+    const existing = await db.Channel.findOne({ where });
 
     if (existing) {
       existing.access_token = encrypt(accessToken);
