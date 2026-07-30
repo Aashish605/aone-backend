@@ -6,9 +6,11 @@ import conversationRoutes from './conversation.routes.js';
 import messageRoutes from './message.routes.js';
 import webhookEventRoutes from './webhook_event.routes.js';
 import facebookRoutes from './facebook.routes.js';
+import instagramRoutes from './instagram.routes.js';
 
 const router = Router();
 
+router.use('/channels/instagram', instagramRoutes);
 router.use('/channels/facebook', facebookRoutes);
 router.use('/channels', channelRoutes);
 router.use('/customers', customerRoutes);
