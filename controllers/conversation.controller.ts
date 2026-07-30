@@ -1,8 +1,11 @@
 import { Op } from 'sequelize';
 import { Request } from 'express';
 import catchAsync from '../utils/catchAsync.js';
+import { NotFoundError, ForbiddenError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
+import { decrypt } from '../utils/crypto.js';
+import { sendSenderAction } from '../services/facebook.service.js';
 
 const listAll = catchAsync(async (req: Request, res) => {
   const authReq = req as AuthenticatedRequest;
@@ -92,4 +95,40 @@ const listAll = catchAsync(async (req: Request, res) => {
   });
 });
 
-export { listAll };
+const markAsRead = catchAsync(async (req: AuthenticatedRequest, res) => {
+  const conversation = await db.Conversation.findByPk(req.params.conversationId as string, {
+    include: [{ model: db.Channel, as: 'channel' }],
+  });
+  if (!conversation) throw new NotFoundError('Conversation');
+  if ((conversation as any).channel?.user_id !== req.user!.id) {
+    throw new ForbiddenError('Not your channel');
+  }
+
+  const [updated] = await db.Message.update(
+    { status: 'read' },
+    {
+      where: {
+        conversation_id: conversation.id,
+        sender_type: 'customer',
+        status: { [Op.ne]: 'read' },
+      },
+    },
+  );
+
+  const channel = (conversation as any).channel;
+  if (channel?.type === 'facebook' && channel.access_token) {
+    const identity = await db.CustomerChannelIdentity.findOne({
+      where: { customer_id: conversation.customer_id, channel_id: conversation.channel_id },
+    });
+    if (identity) {
+      const pageToken = decrypt(channel.access_token);
+      sendSenderAction(pageToken, identity.external_user_id, 'mark_seen').catch((err) =>
+        console.error('mark_seen failed:', err),
+      );
+    }
+  }
+
+  res.json({ success: true, data: { updated } });
+});
+
+export { listAll, markAsRead };

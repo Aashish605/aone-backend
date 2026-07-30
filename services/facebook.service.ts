@@ -3,6 +3,19 @@ import axios from 'axios';
 const GRAPH_API_VERSION = 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
+export async function sendSenderAction(
+  pageToken: string,
+  psid: string,
+  action: 'mark_seen' | 'typing_on' | 'typing_off',
+): Promise<void> {
+  await axios.post(`${GRAPH_BASE}/me/messages`, {
+    recipient: { id: psid },
+    sender_action: action,
+  }, {
+    params: { access_token: pageToken },
+  });
+}
+
 export async function sendFacebookMessage(
   pageToken: string,
   psid: string,
