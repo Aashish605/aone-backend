@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { Request } from 'express';
 import catchAsync from '../utils/catchAsync.js';
-import { NotFoundError, ForbiddenError } from '../utils/AppError.js';
+import { NotFoundError, ForbiddenError, ValidationError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 import { decrypt } from '../utils/crypto.js';
@@ -131,4 +131,37 @@ const markAsRead = catchAsync(async (req: AuthenticatedRequest, res) => {
   res.json({ success: true, data: { updated } });
 });
 
-export { listAll, markAsRead };
+const sendTyping = catchAsync(async (req: AuthenticatedRequest, res) => {
+  const { action } = req.body;
+  if (!action || !['typing_on', 'typing_off'].includes(action)) {
+    throw new ValidationError([
+      { field: 'action', message: 'Must be typing_on or typing_off' },
+    ]);
+  }
+
+  const conversation = await db.Conversation.findByPk(req.params.conversationId as string, {
+    include: [{ model: db.Channel, as: 'channel' }],
+  });
+  if (!conversation) throw new NotFoundError('Conversation');
+  if ((conversation as any).channel?.user_id !== req.user!.id) {
+    throw new ForbiddenError('Not your channel');
+  }
+
+  const channel = (conversation as any).channel;
+  if (channel?.type !== 'facebook' || !channel.access_token) {
+    return res.json({ success: true, data: { sent: false, reason: 'not_facebook' } });
+  }
+
+  const identity = await db.CustomerChannelIdentity.findOne({
+    where: { customer_id: conversation.customer_id, channel_id: conversation.channel_id },
+  });
+  if (!identity) {
+    return res.json({ success: true, data: { sent: false, reason: 'no_identity' } });
+  }
+
+  const pageToken = decrypt(channel.access_token);
+  await sendSenderAction(pageToken, identity.external_user_id, action);
+  res.json({ success: true, data: { sent: true } });
+});
+
+export { listAll, markAsRead, sendTyping };
