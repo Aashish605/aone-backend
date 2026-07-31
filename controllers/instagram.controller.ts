@@ -165,6 +165,7 @@ const handleWebhook = async (req: Request, res: Response) => {
       const accessToken = decrypt(channel.access_token);
 
       for (const event of entry.messaging || []) {
+        try {
         if (event.message) {
           const igUserId = event.sender.id;
           const customer = await resolveInstagramCustomer(channel, igUserId, accessToken);
@@ -303,6 +304,9 @@ const handleWebhook = async (req: Request, res: Response) => {
               }
             }
           }
+        }
+        } catch (eventErr) {
+          console.error('IG Webhook event error:', eventErr instanceof Error ? eventErr.message : String(eventErr));
         }
       }
     }

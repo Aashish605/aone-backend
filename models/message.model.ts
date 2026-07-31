@@ -38,7 +38,7 @@ Message.init(
       allowNull: false,
       defaultValue: 'text',
     },
-    media_url: DataTypes.STRING,
+    media_url: DataTypes.TEXT,
     status: {
       type: DataTypes.ENUM('sent', 'delivered', 'read', 'failed'),
       allowNull: false,

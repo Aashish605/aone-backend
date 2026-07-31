@@ -226,6 +226,7 @@ const handleWebhook = async (req: Request, res: Response) => {
       const pageToken = decrypt(channel.access_token);
 
       for (const event of entry.messaging || []) {
+        try {
         if (event.message) {
           const psid = event.sender.id;
           const customer = await resolveFacebookCustomer(channel, psid, pageToken);
@@ -363,6 +364,9 @@ const handleWebhook = async (req: Request, res: Response) => {
               }
             }
           }
+        }
+        } catch (eventErr) {
+          console.error('Webhook event error:', eventErr instanceof Error ? eventErr.message : String(eventErr));
         }
       }
     }
