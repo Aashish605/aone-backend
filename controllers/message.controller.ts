@@ -5,6 +5,7 @@ import { NotFoundError, ForbiddenError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { decrypt } from '../utils/crypto.js';
 import { sendFacebookMessage } from '../services/facebook.service.js';
+import { sendInstagramMessage } from '../services/instagram.service.js';
 import { triggerConversationEvent } from '../services/pusher.service.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
@@ -109,6 +110,30 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
         messageStatus = 'sent';
       } catch (err) {
         console.error('Facebook send failed:', err);
+        messageStatus = 'failed';
+      }
+    }
+  }
+
+  if (channel?.type === 'instagram' && sender_type !== 'customer' && channel.access_token) {
+    const identity = await db.CustomerChannelIdentity.findOne({
+      where: { customer_id: conversation.customer_id, channel_id: conversation.channel_id },
+    });
+
+    if (identity) {
+      const accessToken = decrypt(channel.access_token);
+      try {
+        const result = await sendInstagramMessage(
+          accessToken,
+          identity.external_user_id,
+          content || null,
+          message_type || 'text',
+          media_url || null,
+        );
+        externalMessageId = result.externalMessageId;
+        messageStatus = 'sent';
+      } catch (err) {
+        console.error('Instagram send failed:', err);
         messageStatus = 'failed';
       }
     }
