@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import catchAsync from '../utils/catchAsync.js';
 import { NotFoundError, ForbiddenError } from '../utils/AppError.js';
 import db from '../models/index.js';
@@ -17,12 +18,32 @@ const list = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
     throw new ForbiddenError('Not your channel');
   }
 
-  const messages = await db.Message.findAll({
-    where: { conversation_id: conversationId },
-    order: [['created_at', 'ASC']],
+  const { limit, page = '1', search } = req.query;
+
+  const where: any = { conversation_id: conversationId };
+  if (search) {
+    where.content = { [Op.iLike]: `%${search}%` };
+  }
+
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || Number.MAX_SAFE_INTEGER));
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const offset = limitNum === Number.MAX_SAFE_INTEGER ? 0 : (pageNum - 1) * limitNum;
+
+  const { count: total, rows: messages } = await db.Message.findAndCountAll({
+    where,
+    order: [['created_at', 'DESC']],
+    limit: limitNum,
+    offset,
   });
 
-  res.json({ success: true, data: messages });
+  const totalPages =
+    limitNum === Number.MAX_SAFE_INTEGER ? 1 : Math.ceil(total / limitNum);
+
+  res.json({
+    success: true,
+    data: messages.reverse(),
+    meta: { total, page: pageNum, limit: limitNum === Number.MAX_SAFE_INTEGER ? total : limitNum, totalPages },
+  });
 });
 
 const getById = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
