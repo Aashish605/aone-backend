@@ -4,6 +4,7 @@ import { NotFoundError, ForbiddenError } from '../utils/AppError.js';
 import db from '../models/index.js';
 import { decrypt } from '../utils/crypto.js';
 import { sendFacebookMessage } from '../services/facebook.service.js';
+import { triggerConversationEvent } from '../services/pusher.service.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 
 const list = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
@@ -105,6 +106,8 @@ const create = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   });
 
   await conversation.update({ last_message_at: new Date() });
+
+  await triggerConversationEvent(conversationId, 'message:new', message);
 
   res.status(201).json({ success: true, data: message });
 });

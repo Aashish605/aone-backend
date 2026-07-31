@@ -7,8 +7,11 @@ import messageRoutes from './message.routes.js';
 import webhookEventRoutes from './webhook_event.routes.js';
 import facebookRoutes from './facebook.routes.js';
 import instagramRoutes from './instagram.routes.js';
+import pusherRoutes from './pusher.routes.js';
 
 const router = Router();
+
+router.use('/pusher', pusherRoutes);
 
 router.use('/channels/instagram', instagramRoutes);
 router.use('/channels/facebook', facebookRoutes);

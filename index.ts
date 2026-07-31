@@ -40,6 +40,10 @@ app.get('/api/debug-env', (_req, res) => {
     corsOriginSet: !!process.env.CORS_ORIGIN,
     databaseUrlSet: !!process.env.DATABASE_URL,
     nodeEnv: process.env.NODE_ENV,
+    pusherAppIdSet: !!process.env.PUSHER_APP_ID,
+    pusherKeySet: !!process.env.PUSHER_KEY,
+    pusherSecretSet: !!process.env.PUSHER_SECRET,
+    pusherClusterSet: !!process.env.PUSHER_CLUSTER,
   });
 });
 app.use('/api', routes);

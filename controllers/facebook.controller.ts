@@ -7,6 +7,7 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 import catchAsync from '../utils/catchAsync.js';
 import { NotFoundError } from '../utils/AppError.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
+import { triggerConversationEvent } from '../services/pusher.service.js';
 
 const GRAPH_API_VERSION = 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -16,7 +17,7 @@ async function subscribePage(pageId: string, accessToken: string) {
     await axios.post(`${GRAPH_BASE}/${pageId}/subscribed_apps`, null, {
       params: {
         access_token: accessToken,
-        subscribed_fields: 'messages,messaging_postbacks,message_deliveries',
+        subscribed_fields: 'messages,messaging_postbacks,message_deliveries,message_reads',
       },
     });
     console.log(`Subscribed page ${pageId} to webhooks`);
@@ -243,7 +244,7 @@ const handleWebhook = async (req: Request, res: Response) => {
           const messageType = event.message.attachments?.[0]?.type === 'image' ? 'image' : 'text';
           const mediaUrl = event.message.attachments?.[0]?.payload?.url || null;
 
-          await db.Message.create({
+          const message = await db.Message.create({
             conversation_id: conversation.id,
             sender_type: 'customer',
             sender_id: customer.id,
@@ -257,6 +258,8 @@ const handleWebhook = async (req: Request, res: Response) => {
 
           conversation.last_message_at = new Date();
           await conversation.save();
+
+          await triggerConversationEvent(conversation.id, 'message:new', message);
         }
 
         if (event.postback) {
@@ -304,11 +307,14 @@ const handleWebhook = async (req: Request, res: Response) => {
                   where: {
                     conversation_id: conversation.id,
                     sender_type: 'agent',
-                    created_at: { [Op.lte]: new Date(event.read.watermark) },
                     status: { [Op.ne]: 'read' },
                   },
                 },
               );
+              await triggerConversationEvent(conversation.id, 'messages:updated', {
+                conversationId: conversation.id,
+                reason: 'read',
+              });
             }
           }
         }
@@ -320,6 +326,15 @@ const handleWebhook = async (req: Request, res: Response) => {
               { status: 'delivered' },
               { where: { external_message_id: mids, status: 'sent' } },
             );
+            const deliveredMsg = await db.Message.findOne({
+              where: { external_message_id: mids },
+            });
+            if (deliveredMsg) {
+              await triggerConversationEvent(deliveredMsg.conversation_id, 'messages:updated', {
+                conversationId: deliveredMsg.conversation_id,
+                reason: 'delivery',
+              });
+            }
           } else if (event.sender?.id) {
             const identity = await db.CustomerChannelIdentity.findOne({
               where: { channel_id: channel.id, external_user_id: event.sender.id },
@@ -341,6 +356,10 @@ const handleWebhook = async (req: Request, res: Response) => {
                     },
                   },
                 );
+                await triggerConversationEvent(conversation.id, 'messages:updated', {
+                  conversationId: conversation.id,
+                  reason: 'delivery',
+                });
               }
             }
           }

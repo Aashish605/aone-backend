@@ -6,6 +6,7 @@ import db from '../models/index.js';
 import { AuthenticatedRequest } from '../middlewares/session.middleware.js';
 import { decrypt } from '../utils/crypto.js';
 import { sendSenderAction } from '../services/facebook.service.js';
+import { triggerConversationEvent } from '../services/pusher.service.js';
 
 const listAll = catchAsync(async (req: Request, res) => {
   const authReq = req as AuthenticatedRequest;
@@ -129,6 +130,11 @@ const markAsRead = catchAsync(async (req: AuthenticatedRequest, res) => {
   }
 
   res.json({ success: true, data: { updated } });
+
+  await triggerConversationEvent(conversation.id, 'messages:updated', {
+    conversationId: conversation.id,
+    reason: 'agent_read',
+  });
 });
 
 const sendTyping = catchAsync(async (req: AuthenticatedRequest, res) => {
