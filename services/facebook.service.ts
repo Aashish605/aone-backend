@@ -25,9 +25,9 @@ export async function sendFacebookMessage(
 ): Promise<{ externalMessageId: string | null }> {
   const msgBody: any = { messaging_type: 'RESPONSE', recipient: { id: psid } };
 
-  if (messageType === 'image' && mediaUrl) {
+  if ((messageType === 'image' || messageType === 'video') && mediaUrl) {
     msgBody.message = {
-      attachment: { type: 'image', payload: { url: mediaUrl } },
+      attachment: { type: messageType, payload: { url: mediaUrl } },
     };
   } else {
     msgBody.message = { text: content || '' };
